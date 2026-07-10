@@ -1,8 +1,6 @@
-package com.duradb;
+package com.duradb.model;
 
-/*学生数据模型
- *这是我们 DuraDB 支持的核心数据结构之一
- */
+/*学生数据模型*/
 public class Student {
     // 成员变量（属性）
     private int id;

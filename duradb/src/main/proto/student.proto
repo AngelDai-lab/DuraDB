@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package com.duradb.proto;
+
+message StudentProto {
+    int32 id = 1;
+    string name = 2;
+    double gpa = 3;
+}
+
+message CourseProto {
+    string code = 1;
+    string name = 2;
+    repeated StudentProto students = 3;
+}
+
+message NodeProto {
+    int32 id = 1;
+    string value = 2;
+    repeated int32 neighborIds = 3;
+}
+
+message GraphProto {
+    repeated NodeProto nodes = 1;
+    int32 rootId = 2;
+}
