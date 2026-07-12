@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 
 /**
  * 页管理器
@@ -38,26 +40,43 @@ public class PageManager {
     // 当前文件总页数
     private int totalPages;
     
+    //缓冲池
+    private final BufferPool bufferPool;   
+
     // 空闲页列表（这些页可以被复用）
     // 以后可以持久化到磁盘，目前先用内存缓存
     private final Map<Integer, Boolean> freePages = new HashMap<>();
 
-    /**
-     * 构造函数：打开或创建数据文件
-     */
+    /*构造函数：打开或创建数据文件（默认缓存 16 页）*/
     public PageManager(String fileName) throws IOException {
+        this(fileName, 16);  // 调用两个参数的构造函数
+    }
+    
+    /* 构造函数：打开或创建数据文件（指定缓存大小）*/
+    public PageManager(String fileName, int cacheSize) throws IOException {
         this.filePath = Paths.get(fileName);
-        
-        // 以读写模式打开文件，如果不存在则创建
-        RandomAccessFile file = new RandomAccessFile(filePath.toFile(), "rw");
-        this.fileChannel = file.getChannel();
-        
-        // 计算当前文件有多少页
+
+        // 确保父目录存在
+        Path parent = filePath.getParent();
+        if (parent != null && !Files.exists(parent)) {
+            Files.createDirectories(parent);
+        }
+
+        // 用 FileChannel 打开文件（更简洁）
+        this.fileChannel = FileChannel.open(filePath,
+                StandardOpenOption.READ,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.CREATE);
+
         long fileSize = fileChannel.size();
         this.totalPages = (int) (fileSize / Page.PAGE_SIZE);
-        
-        System.out.println("PageManager 初始化: " + fileName + 
-                           ", 大小: " + fileSize + " 字节, 页数: " + totalPages);
+
+        // 初始化缓冲池
+        this.bufferPool = new BufferPool(cacheSize);
+
+        System.out.println("PageManager 初始化: " + fileName +
+                ", 大小: " + fileSize + " 字节, 页数: " + totalPages +
+                ", 缓存: " + cacheSize + " 页");
     }
 
     // ==================== 页的读写 ====================
@@ -65,36 +84,37 @@ public class PageManager {
     /**
      * 读取指定页
      */
-    public Page readPage(int pageId) throws IOException {
+   public Page readPage(int pageId) throws IOException {
         if (pageId < 0 || pageId >= totalPages) {
             throw new IllegalArgumentException("页号无效: " + pageId + ", 总页数: " + totalPages);
         }
         
-        // 分配 4KB 缓冲区
-        ByteBuffer buffer = ByteBuffer.allocate(Page.PAGE_SIZE);
+        // 1. 先查缓存
+        Page page = bufferPool.get(pageId);
+        if (page != null) {
+            return page;
+        }
         
-        // 定位到该页的起始位置
+        // 2. 缓存未命中，从磁盘读取
+        ByteBuffer buffer = ByteBuffer.allocate(Page.PAGE_SIZE);
         long position = (long) pageId * Page.PAGE_SIZE;
         fileChannel.read(buffer, position);
         
-        // 从缓冲区取出数据
         byte[] data = buffer.array();
-        
-        // 用数据构造 Page 对象
-        Page page = new Page(data);
+        page = new Page(data);  // ← 复用 page 变量，不用重新声明
         
         // 验证页号是否匹配
         if (page.getPageId() != pageId) {
             System.out.println("警告: 读取的页号 " + page.getPageId() + 
-                               " 与请求的 " + pageId + " 不一致");
+                            " 与请求的 " + pageId + " 不一致");
         }
         
+        // 3. 放入缓存
+        bufferPool.put(pageId, page);
         return page;
     }
 
-    /**
-     * 写入指定页（将页数据刷回磁盘）
-     */
+    /*写入指定页（将页数据刷回磁盘）*/
     public void writePage(Page page) throws IOException {
         int pageId = page.getPageId();
         
@@ -111,6 +131,9 @@ public class PageManager {
         
         // 强制刷盘（确保数据真正写入磁盘）
         fileChannel.force(false);
+
+        // 写完后更新缓存（保证缓存里是最新数据）
+        bufferPool.put(pageId, page);
     }
 
     // ==================== 页的分配 ====================
