@@ -1,5 +1,6 @@
 package com.duradb.storage;
 
+import com.duradb.util.ChecksumUtil;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -195,20 +196,22 @@ public class Page {
         return PAGE_SIZE - used;
     }
 
-    /* 校验和（简易版本）*/
+    /*计算整页的 CRC32 校验和（只计算数据区，不含页头）*/
     public int calculateChecksum() {
-        int sum = 0;
-        for (int i = HEADER_SIZE; i < PAGE_SIZE; i++) {
-            sum += data[i] & 0xFF;
-        }
-        return sum;
+        // 只计算数据区（从 HEADER_SIZE 到 PAGE_SIZE）
+        // 页头本身的 checksum 字段不参与计算，避免循环依赖
+        return (int) ChecksumUtil.calculateCRC32(data, HEADER_SIZE, PAGE_SIZE - HEADER_SIZE);
     }
 
     /* 验证校验和*/
     public boolean verifyChecksum() {
         int stored = getChecksum();
         int calculated = calculateChecksum();
-        return stored == calculated;
+        if (stored != calculated) {
+            System.out.println("⚠️ 校验和失败: 存储=" + stored + ", 计算=" + calculated);
+            return false;
+        }
+        return true;
     }
 
     /* 更新校验和*/

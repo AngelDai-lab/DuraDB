@@ -1,7 +1,6 @@
 package com.duradb.storage;
 
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
@@ -11,58 +10,29 @@ import java.util.Map;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
-/**
- * 页管理器
- * 
- * 职责：
- * 1. 管理数据文件中的所有页
- * 2. 分配新页（追加到文件末尾）
- * 3. 读取指定页
- * 4. 写入指定页（将页数据写回文件）
- * 5. 维护空闲页列表（被删除的页可以复用）
- * 
- * 文件结构：
- * +--------+--------+--------+--------+--------+
- * |  Page 0 |  Page 1 |  Page 2 |  Page 3 |  ...  |
- * |  4KB    |  4KB    |  4KB    |  4KB    |       |
- * +--------+--------+--------+--------+--------+
- * 
- * 第 N 页在文件中的位置：N * 4096
- */
+import com.duradb.index.BPlusTree;
+
 public class PageManager {
 
-    // 数据文件路径
     private final Path filePath;
-    
-    // 文件通道（用于读写）
     private FileChannel fileChannel;
-    
-    // 当前文件总页数
     private int totalPages;
-    
-    //缓冲池
-    private final BufferPool bufferPool;   
-
-    // 空闲页列表（这些页可以被复用）
-    // 以后可以持久化到磁盘，目前先用内存缓存
+    private final BufferPool bufferPool;
     private final Map<Integer, Boolean> freePages = new HashMap<>();
+    private BPlusTree bPlusTree;
 
-    /*构造函数：打开或创建数据文件（默认缓存 16 页）*/
     public PageManager(String fileName) throws IOException {
-        this(fileName, 16);  // 调用两个参数的构造函数
+        this(fileName, 16);
     }
-    
-    /* 构造函数：打开或创建数据文件（指定缓存大小）*/
+
     public PageManager(String fileName, int cacheSize) throws IOException {
         this.filePath = Paths.get(fileName);
 
-        // 确保父目录存在
         Path parent = filePath.getParent();
         if (parent != null && !Files.exists(parent)) {
             Files.createDirectories(parent);
         }
 
-        // 用 FileChannel 打开文件（更简洁）
         this.fileChannel = FileChannel.open(filePath,
                 StandardOpenOption.READ,
                 StandardOpenOption.WRITE,
@@ -70,219 +40,182 @@ public class PageManager {
 
         long fileSize = fileChannel.size();
         this.totalPages = (int) (fileSize / Page.PAGE_SIZE);
-
-        // 初始化缓冲池
         this.bufferPool = new BufferPool(cacheSize);
 
+        try {
+            this.bPlusTree = new BPlusTree(this);
+        } catch (Exception e) {
+            System.err.println("B+树初始化失败: " + e.getMessage());
+            this.bPlusTree = null;
+        }
+
         System.out.println("PageManager 初始化: " + fileName +
-                ", 大小: " + fileSize + " 字节, 页数: " + totalPages +
-                ", 缓存: " + cacheSize + " 页");
+                ", 总页数: " + totalPages +
+                ", B+树: " + (bPlusTree != null ? "✅" : "❌"));
     }
 
-    // ==================== 页的读写 ====================
-
-    /**
-     * 读取指定页
-     */
-   public Page readPage(int pageId) throws IOException {
+    public Page readPage(int pageId) throws IOException {
         if (pageId < 0 || pageId >= totalPages) {
-            throw new IllegalArgumentException("页号无效: " + pageId + ", 总页数: " + totalPages);
+            throw new IllegalArgumentException("页号无效: " + pageId);
         }
-        
-        // 1. 先查缓存
+
         Page page = bufferPool.get(pageId);
         if (page != null) {
             return page;
         }
-        
-        // 2. 缓存未命中，从磁盘读取
+
         ByteBuffer buffer = ByteBuffer.allocate(Page.PAGE_SIZE);
         long position = (long) pageId * Page.PAGE_SIZE;
         fileChannel.read(buffer, position);
-        
+
         byte[] data = buffer.array();
-        page = new Page(data);  // ← 复用 page 变量，不用重新声明
-        
-        // 验证页号是否匹配
-        if (page.getPageId() != pageId) {
-            System.out.println("警告: 读取的页号 " + page.getPageId() + 
-                            " 与请求的 " + pageId + " 不一致");
-        }
-        
-        // 3. 放入缓存
+        page = new Page(data);
+
         bufferPool.put(pageId, page);
         return page;
     }
 
-    /*写入指定页（将页数据刷回磁盘）*/
     public void writePage(Page page) throws IOException {
         int pageId = page.getPageId();
-        
-        // 更新校验和
         page.updateChecksum();
-        
-        // 获取页的字节数据
+
         byte[] data = page.getData();
         ByteBuffer buffer = ByteBuffer.wrap(data);
-        
-        // 定位到该页的起始位置
         long position = (long) pageId * Page.PAGE_SIZE;
         fileChannel.write(buffer, position);
-        
-        // 强制刷盘（确保数据真正写入磁盘）
         fileChannel.force(false);
 
-        // 写完后更新缓存（保证缓存里是最新数据）
         bufferPool.put(pageId, page);
     }
 
-    // ==================== 页的分配 ====================
-
-    /**
-     * 分配一个新页
-     * 优先复用空闲页，如果没有则追加到文件末尾
-     */
     public Page allocatePage() throws IOException {
-        int pageId;
-        
-        // 1. 尝试从空闲列表中复用
         for (Map.Entry<Integer, Boolean> entry : freePages.entrySet()) {
             if (entry.getValue()) {
-                pageId = entry.getKey();
-                freePages.put(pageId, false);  // 标记为已占用
-                
-                // 创建一个新页，复用这个 ID
+                int pageId = entry.getKey();
+                freePages.put(pageId, false);
                 Page page = new Page(pageId);
                 writePage(page);
-                System.out.println("复用空闲页: " + pageId);
                 return page;
             }
         }
-        
-        // 2. 没有空闲页，追加到文件末尾
-        pageId = totalPages;
+
+        int pageId = totalPages;
         totalPages++;
-        
-        // 创建新页
         Page page = new Page(pageId);
         writePage(page);
-        
-        System.out.println("分配新页: " + pageId + ", 总页数: " + totalPages);
         return page;
     }
 
-    /**
-     * 释放一个页（标记为空闲）
-     */
     public void freePage(int pageId) {
         if (pageId < 0 || pageId >= totalPages) {
             throw new IllegalArgumentException("无效的页号: " + pageId);
         }
         freePages.put(pageId, true);
-        System.out.println("释放页: " + pageId);
     }
 
-    // ==================== 数据写入 ====================
-
-    /**
-     * 插入一条记录
-     * 自动寻找有空间的页，如果当前页满了就分配新页
-     */
     public RecordId insert(byte[] record) throws IOException {
-        // 1. 从最后一页开始找（优先用最新的页，提高缓存命中率）
         for (int pageId = totalPages - 1; pageId >= 0; pageId--) {
-            // 跳过空闲页
             if (freePages.getOrDefault(pageId, false)) {
                 continue;
             }
-            
+
             Page page = readPage(pageId);
-            
-            // 尝试插入
             if (page.insertRecord(record)) {
-                // 写入成功，更新校验和并写回磁盘
                 page.updateChecksum();
                 writePage(page);
                 int slotIndex = page.getRecordCount() - 1;
-                System.out.println("插入记录: 页 " + pageId + ", 槽 " + slotIndex);
-                return new RecordId(pageId, slotIndex);
+                RecordId recordId = new RecordId(pageId, slotIndex);
+
+                int key = extractId(record);
+                if (key != -1 && bPlusTree != null) {
+                    bPlusTree.insert(key, recordId);
+                }
+                return recordId;
             }
         }
-        
-        // 2. 所有现有页都满了，分配新页
+
         Page newPage = allocatePage();
-        boolean success = newPage.insertRecord(record);
-        if (!success) {
-            throw new IOException("新页也无法插入记录，记录可能太大");
+        if (!newPage.insertRecord(record)) {
+            throw new IOException("无法插入记录");
         }
         newPage.updateChecksum();
         writePage(newPage);
-        
+
         int slotIndex = newPage.getRecordCount() - 1;
-        System.out.println("插入记录到新页: 页 " + newPage.getPageId() + ", 槽 " + slotIndex);
-        return new RecordId(newPage.getPageId(), slotIndex);
+        RecordId recordId = new RecordId(newPage.getPageId(), slotIndex);
+
+        int key = extractId(record);
+        if (key != -1 && bPlusTree != null) {
+            bPlusTree.insert(key, recordId);
+        }
+        return recordId;
     }
 
-    // ==================== 数据读取 ====================
-
-    /**
-     * 根据 RecordId 读取一条记录
-     */
     public byte[] read(RecordId recordId) throws IOException {
         int pageId = recordId.getPageId();
         int slotIndex = recordId.getSlotIndex();
-        
+
         if (pageId < 0 || pageId >= totalPages) {
-            throw new IllegalArgumentException("页号无效: " + pageId);
+            return null;
         }
-        
+
         Page page = readPage(pageId);
-        
-        // 检查是否已被删除
         if (page.isDeleted(slotIndex)) {
-            return null;  // 记录已被删除
+            return null;
         }
-        
         return page.readRecord(slotIndex);
     }
 
-    // ==================== 数据删除 ====================
+    public byte[] selectById(int id) throws Exception {
+        if (bPlusTree == null) {
+            return null;
+        }
+        RecordId recordId = bPlusTree.search(id);
+        if (recordId == null) {
+            return null;
+        }
+        return read(recordId);
+    }
 
-    /**
-     * 删除一条记录（标记删除）
-     */
+    public BPlusTree getBPlusTree() {
+        return bPlusTree;
+    }
+
     public boolean delete(RecordId recordId) throws IOException {
         int pageId = recordId.getPageId();
         int slotIndex = recordId.getSlotIndex();
-        
+
         if (pageId < 0 || pageId >= totalPages) {
             return false;
         }
-        
+
+        byte[] record = read(recordId);
+        int key = record != null ? extractId(record) : -1;
+
         Page page = readPage(pageId);
         boolean success = page.deleteRecord(slotIndex);
-        
+
         if (success) {
             page.updateChecksum();
             writePage(page);
-            System.out.println("删除记录: 页 " + pageId + ", 槽 " + slotIndex);
+            if (key != -1 && bPlusTree != null) {
+                bPlusTree.remove(key);
+            }
         }
-        
         return success;
     }
 
-    // ==================== 工具方法 ====================
+    private int extractId(byte[] record) {
+        if (record == null || record.length < 4) {
+            return -1;
+        }
+        return ByteBuffer.wrap(record).getInt();
+    }
 
-    /**
-     * 获取总页数
-     */
     public int getTotalPages() {
         return totalPages;
     }
 
-    /**
-     * 获取空闲页数量
-     */
     public int getFreePageCount() {
         int count = 0;
         for (boolean isFree : freePages.values()) {
@@ -291,9 +224,6 @@ public class PageManager {
         return count;
     }
 
-    /**
-     * 关闭文件
-     */
     public void close() throws IOException {
         if (fileChannel != null) {
             fileChannel.force(true);
@@ -302,14 +232,9 @@ public class PageManager {
         System.out.println("PageManager 已关闭");
     }
 
-    /**
-     * 打印统计信息
-     */
     public void printStats() throws IOException {
-        System.out.println("=== PageManager 统计 ===");
         System.out.println("总页数: " + totalPages);
         System.out.println("空闲页: " + getFreePageCount());
-        
         int totalRecords = 0;
         for (int i = 0; i < totalPages; i++) {
             if (freePages.getOrDefault(i, false)) continue;
@@ -317,6 +242,8 @@ public class PageManager {
             totalRecords += page.getRecordCount();
         }
         System.out.println("总记录数: " + totalRecords);
-        System.out.println("========================");
+        if (bPlusTree != null) {
+            System.out.println("B+树索引大小: " + bPlusTree.size());
+        }
     }
 }
