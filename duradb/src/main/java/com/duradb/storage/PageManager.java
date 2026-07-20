@@ -51,7 +51,7 @@ public class PageManager {
 
         System.out.println("PageManager 初始化: " + fileName +
                 ", 总页数: " + totalPages +
-                ", B+树: " + (bPlusTree != null ? "✅" : "❌"));
+                ", B+树: " + (bPlusTree != null ? "succeeded" : "failed"));
     }
 
     public Page readPage(int pageId) throws IOException {

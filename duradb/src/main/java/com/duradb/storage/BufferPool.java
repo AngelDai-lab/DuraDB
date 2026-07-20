@@ -43,7 +43,7 @@ public class BufferPool {
     public Page get(int pageId) {
         Page page = cache.get(pageId);
         if (page != null) {
-            System.out.println("  [缓存命中] 页 " + pageId);
+         //   System.out.println("  [缓存命中] 页 " + pageId);
         }
         return page;
     }
@@ -55,7 +55,7 @@ public class BufferPool {
      */
     public void put(int pageId, Page page) {
         cache.put(pageId, page);
-        System.out.println("  [缓存放入] 页 " + pageId + " (当前缓存: " + cache.size() + "/" + maxSize + ")");
+        //System.out.println("  [缓存放入] 页 " + pageId + " (当前缓存: " + cache.size() + "/" + maxSize + ")");
     }
 
     /**

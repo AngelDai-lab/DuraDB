@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'><title>DuraDB 测试报告</title>
+<style>
+body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; }
+h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+.summary { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+.pass { color: #27ae60; font-weight: bold; }
+.fail { color: #e74c3c; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+th { background: #3498db; color: white; padding: 12px; text-align: left; }
+td { padding: 10px; border-bottom: 1px solid #ddd; }
+.status-icon { font-size: 20px; }
+.footer { margin-top: 30px; color: #7f8c8d; font-size: 14px; text-align: center; }
+</style>
+</head>
+<body>
+<h1>📊 DuraDB 统一测试报告</h1>
+<p><strong>生成时间:</strong> 2026-07-20 19:53:48</p>
+<div class='summary'>
+<h3>📈 测试汇总</h3>
+<p>总测试项: <strong>8</strong></p>
+<p class='pass'>✅ 通过: 8</p>
+<p class='fail'>❌ 失败: 0</p>
+<p>总耗时: <strong>585 ms</strong></p>
+</div>
+<table>
+<tr><th>#</th><th>模块</th><th>状态</th><th>详情</th></tr>
+<tr>
+<td>1</td>
+<td><strong>数据模型</strong></td>
+<td><span class='status-icon pass'>✅</span></td>
+<td>Student/Course/Node 创建成功</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>序列化</strong></td>
+<td><span class='status-icon pass'>✅</span></td>
+<td>Binary: 22B, JSON: 41B, Protobuf: 23B</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Page</strong></td>
+<td><span class='status-icon pass'>✅</span></td>
+<td>记录数: 2, 空闲: 4062B</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>PageManager</strong></td>
+<td><span class='status-icon pass'>✅</span></td>
+<td>总页数: 1</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>WAL</strong></td>
+<td><span class='status-icon pass'>✅</span></td>
+<td>恢复成功，跳过 5 条已存在记录</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>B+树索引</strong></td>
+<td><span class='status-icon pass'>✅</span></td>
+<td>索引大小: 20</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Checksum</strong></td>
+<td><span class='status-icon pass'>✅</span></td>
+<td>CRC32 检测到数据损坏 ✅</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>CSV完整流程</strong></td>
+<td><span class='status-icon pass'>✅</span></td>
+<td>导入20条, 增删改查全部通过</td>
+</tr>
+</table>
+<div class='footer'>
+DuraDB 测试报告 · 自动生成
+</div>
+</body></html>
