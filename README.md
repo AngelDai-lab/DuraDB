@@ -205,9 +205,6 @@ text
 ### 运行步骤
 
 ```bash
-#### 运行步骤
-
-```bash
 # 1. 克隆项目
 git clone https://github.com/AngelDai-lab/DuraDB.git
 cd DuraDB
