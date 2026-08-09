@@ -93,11 +93,12 @@ public class AllTests {
             ok &= n.getNeighbors().size() == 1;
 
             addResult("数据模型", ok, "Student/Course/Node 创建成功");
-
+            System.out.println();
         } catch (Exception e) {
             addResult("数据模型", false, e.getMessage());
         }
     }
+    
 
     // ==================== 2. 序列化测试 ====================
 
@@ -127,11 +128,12 @@ public class AllTests {
 
             boolean allOk = bOk && jOk && pOk;
             addResult("序列化", allOk, "Binary: " + bData.length + "B, JSON: " + jData.length + "B, Protobuf: " + pData.length + "B");
-
+            System.out.println();
         } catch (Exception e) {
             addResult("序列化", false, e.getMessage());
         }
     }
+    
 
     // ==================== 3. Page 测试 ====================
 
@@ -154,11 +156,12 @@ public class AllTests {
             ok &= page.verifyChecksum();
 
             addResult("Page", ok, "记录数: " + page.getRecordCount() + ", 空闲: " + page.getFreeSpace() + "B");
-
+            System.out.println();
         } catch (Exception e) {
             addResult("Page", false, e.getMessage());
         }
     }
+    
 
     // ==================== 4. PageManager 测试 ====================
 
@@ -193,11 +196,12 @@ public class AllTests {
             Files.deleteIfExists(Paths.get("data/test_pm.dat"));
 
             addResult("PageManager", ok, "总页数: " + pm.getTotalPages());
-
+            System.out.println();
         } catch (Exception e) {
             addResult("PageManager", false, e.getMessage());
         }
     }
+    
 
     // ==================== 5. WAL 测试 ====================
 
@@ -249,11 +253,12 @@ public class AllTests {
             Files.deleteIfExists(Paths.get("data/test_wal.wal"));
 
             addResult("WAL", ok, "恢复成功，跳过 " + entries.size() + " 条已存在记录");
-
+            System.out.println();
         } catch (Exception e) {
             addResult("WAL", false, e.getMessage());
         }
     }
+    
 
     // ==================== 6. B+树索引测试 ====================
 
@@ -288,11 +293,12 @@ public class AllTests {
             Files.deleteIfExists(Paths.get("data/test_btree.dat"));
 
             addResult("B+树索引", ok, "索引大小: " + (tree != null ? tree.size() : 0));
-
+            System.out.println();
         } catch (Exception e) {
             addResult("B+树索引", false, e.getMessage());
         }
     }
+    
 
     // ==================== 7. Checksum 测试 ====================
 
@@ -310,12 +316,13 @@ public class AllTests {
 
             boolean ok = crc1 != crc2;
 
-            addResult("Checksum", ok, "CRC32 检测到数据损坏 ✅");
-
+            addResult("Checksum", ok, "CRC32 检测到数据损坏。");
+            System.out.println();
         } catch (Exception e) {
             addResult("Checksum", false, e.getMessage());
         }
     }
+    
 
     // ==================== 8. CSV 完整流程测试 ====================
 
@@ -394,7 +401,7 @@ public class AllTests {
                 if (verified != null) {
                     Student s = codec.deserializeStudent(verified);
                     ok &= s.getName().equals("UpdatedStudent") && s.getGpa() == 4.9;
-                    System.out.println("  📖 验证修改 → " + s);
+                    System.out.println("   验证修改 → " + s);
                 }
             }
 

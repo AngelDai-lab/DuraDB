@@ -23,14 +23,14 @@ import java.util.ArrayList;
  *  1. 学生管理（增删改查）
  *  2. 课程管理（增删改查 + 选课/退课 + 查看选课名单）
  */
-public class InteractiveDB {
+public class AcademicSystem {
 
     private PageManager pm;
     private BinaryCodec codec;
     private boolean isRunning;
     private String dbPath = "data/academic.db";
 
-    public InteractiveDB() {
+    public AcademicSystem() {
         this.codec = new BinaryCodec();
         this.isRunning = true;
     }
@@ -53,7 +53,7 @@ public class InteractiveDB {
         System.out.println("╚══════════════════════════════════════════════════════════════╝");
         System.out.println();
 
-        InteractiveDB db = new InteractiveDB();
+        AcademicSystem db = new AcademicSystem();
 
         if (Files.exists(Paths.get(dbPath))) {
             System.out.println(" 检测到已有数据库，自动加载...");
@@ -76,6 +76,28 @@ public class InteractiveDB {
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
             while (isRunning) {
+                System.out.println();
+                System.out.println(" 可用命令:");
+                System.out.println("  【学生管理】");
+                System.out.println("  load <csv文件>          - 加载学生 CSV 数据");
+                System.out.println("  list                    - 列出所有学生");
+                System.out.println("  find <id>               - 按 id 查询学生");
+                System.out.println("  add <id> <name> <gpa>   - 添加学生");
+                System.out.println("  delete <id>             - 删除学生");
+                System.out.println("  update <id> <name> <gpa> - 修改学生");
+                System.out.println();
+                System.out.println("  【课程管理】");
+                System.out.println("  course list             - 列出所有课程及选课人数");
+                System.out.println("  course find <code>      - 查看课程详情（含选课学生名单）");
+                System.out.println("  course add <code> <name>- 添加课程");
+                System.out.println("  course delete <code>    - 删除课程");
+                System.out.println("  enroll <code> <studentId> - 学生选课");
+                System.out.println("  drop <code> <studentId>  - 学生退课");
+                System.out.println();
+                System.out.println("  【系统】");
+                System.out.println("  stats                   - 查看统计");
+                System.out.println("  export <csv文件>        - 导出学生数据到 CSV");
+                System.out.println("  exit / quit             - 退出程序");
                 System.out.println();
                 System.out.print("[load | list | find | add | delete | update | course | enroll | drop | stats | export | help | exit]\n> ");
                 String line = reader.readLine();
@@ -126,37 +148,15 @@ public class InteractiveDB {
 
     private void printHelp() {
         System.out.println();
-        System.out.println(" 可用命令:");
+        System.out.println("命令示例:");
+        System.out.println("    load data/students.csv          - 加载数据");
+        System.out.println("    list                            - 查看所有学生");
+        System.out.println("    add 99 Alice 4.5                - 添加学生");
+        System.out.println("    course add CS101 DataStructures - 添加课程");
+        System.out.println("    enroll CS101 10                 - 学生选课");
+        System.out.println("    stats                           - 查看统计");
+        System.out.println("    exit                            - 退出");
         System.out.println();
-        System.out.println("  【学生管理】");
-        System.out.println("  load <csv文件>          - 加载学生 CSV 数据");
-        System.out.println("  list                    - 列出所有学生");
-        System.out.println("  find <id>               - 按 id 查询学生");
-        System.out.println("  add <id> <name> <gpa>   - 添加学生");
-        System.out.println("  delete <id>             - 删除学生");
-        System.out.println("  update <id> <name> <gpa> - 修改学生");
-        System.out.println();
-        System.out.println("  【课程管理】");
-        System.out.println("  course list             - 列出所有课程及选课人数");
-        System.out.println("  course find <code>      - 查看课程详情（含选课学生名单）");
-        System.out.println("  course add <code> <name>- 添加课程");
-        System.out.println("  course delete <code>    - 删除课程");
-        System.out.println("  enroll <code> <studentId> - 学生选课");
-        System.out.println("  drop <code> <studentId>  - 学生退课");
-        System.out.println();
-        System.out.println("  【系统】");
-        System.out.println("  stats                   - 查看统计");
-        System.out.println("  export <csv文件>        - 导出学生数据到 CSV");
-        System.out.println("  exit / quit             - 退出程序");
-        System.out.println();
-        System.out.println(" 示例:");
-        System.out.println("  load data/students.csv");
-        System.out.println("  list");
-        System.out.println("  add 99 Alice 4.5");
-        System.out.println("  course add CS101 数据结构");
-        System.out.println("  course find CS101");
-        System.out.println("  enroll CS101 10");
-        System.out.println("  enroll CS101 20");
     }
 
     // ==================== 系统命令 ====================
@@ -256,17 +256,17 @@ public class InteractiveDB {
 
     private void handleList() throws Exception {
         if (pm == null) {
-            System.out.println("    请先加载数据 (load <csv文件>)");
+            System.out.println(" 请先加载数据 (load <csv文件>)");
             return;
         }
 
         BPlusTree tree = pm.getBPlusTree();
         if (tree == null || tree.size() == 0) {
-            System.out.println("   数据库为空");
+            System.out.println(" 数据库为空");
             return;
         }
 
-        System.out.println("   学生列表:");
+        System.out.println(" 学生列表:");
         int count = 0;
         for (int pageId = 0; pageId < pm.getTotalPages(); pageId++) {
             try {
@@ -280,7 +280,7 @@ public class InteractiveDB {
                 }
             } catch (Exception e) {}
         }
-        System.out.println("  共 " + count + " 条记录");
+        System.out.println(" 共 " + count + " 条记录");
     }
 
     private void handleFind(String[] parts) throws Exception {
@@ -427,7 +427,7 @@ public class InteractiveDB {
     }
 
     private void listCourses() throws Exception {
-        System.out.println("  📚 课程列表:");
+        System.out.println("   课程列表:");
         int count = 0;
         for (int pageId = 0; pageId < pm.getTotalPages(); pageId++) {
             try {

@@ -22,7 +22,6 @@
 - [项目结构](#-项目结构)
 - [技术栈](#-技术栈)
 - [测试报告](#-测试报告)
-- [贡献指南](#-贡献指南)
 - [许可证](#-许可证)
 - [联系与致谢](#-联系与致谢)
 
@@ -74,7 +73,6 @@
 | **Record Data** | 变长 | 正向（从前往后） | 实际存储的序列化记录数据 |
 | **Slot Directory** | 变长 | 反向（从后往前） | 每个槽 4 字节，记录每条数据的偏移量和长度 |
 
-text
 
 **Page Header（16 字节）：**
 
@@ -207,6 +205,9 @@ text
 ### 运行步骤
 
 ```bash
+#### 运行步骤
+
+```bash
 # 1. 克隆项目
 git clone https://github.com/AngelDai-lab/DuraDB.git
 cd DuraDB
@@ -214,10 +215,15 @@ cd DuraDB
 # 2. 构建项目
 mvn clean package
 
-# 3. 启动 CLI 教务管理系统
-java -cp target/DuraDB-1.0-SNAPSHOT.jar com.duradb.api.Main
+# 3. 准备数据（二选一）
+# 方式一：使用自己的 CSV 文件，放入 data/ 目录
+# 方式二：生成测试数据
+mvn exec:java -Dexec.mainClass="com.duradb.util.CSVGenerator"
 
-# 4. 运行统一测试
+# 4. 启动教务管理系统
+mvn exec:java -Dexec.mainClass="com.duradb.api.AcademicSystemCLI"
+
+# 5. 运行统一测试
 mvn exec:java -Dexec.mainClass="com.duradb.AllTests"
 ```
 
@@ -282,9 +288,10 @@ DuraDB/
 │   ├── main/
 │   │   └── java/com/duradb/
 │   │       ├── api/                    # 接入层
-│   │       │   └── InteractiveDB.java  # 教务管理系统 CLI
+│   │       │   └── AcademicSystem.java  # 教务系统命令行
 │   │       ├── codec/                  # 序列化层
-│   │       │   ├── BinaryCodec.java    
+│   │       │   ├── BinaryCodec.java  
+│   │       │   ├── Codec.java          # 统一接口
 │   │       │   ├── JsonCodec.java      
 │   │       │   └── ProtobufCodec.java  
 │   │       ├── model/                  # 数据模型层
@@ -301,17 +308,18 @@ DuraDB/
 │   │       ├── index/                  # 索引层
 │   │       │   └── BPlusTree.java      
 │   │       └── util/                   # 工具层
+│   │           ├── ChecksumTest.java   # 测试能否检测到数据损坏
 │   │           ├── ChecksumUtil.java   
-│   │           ├── CSVLoader.java      
-│   │           └── CSVWholeStore.java  
+│   │           ├── CSVGenerator.java   # 自动生成数据文件     
+│   │           └── CSVLoader.java
 │   └── test/
 │       └── java/com/duradb/
-│           ├── AllTests.java           # 统一测试入口
-│           └── util/
-│               └── CSVTest.java        # CSV 测试
-├── data/                               # 数据文件目录
+│           ├── AllTests.java           # 测试所有模块
+│           └── BenchmarkTest.java      # 测试性能基准
+├── data/                               # 存放生成的数据文件
 │   └── students.csv                    
 ├── results/                            # Benchmark 结果
+│   └── benchmark_results.csv     
 ├── test_report.html                    # 自动生成的测试报告
 ├── pom.xml
 └── README.md
@@ -371,31 +379,6 @@ DuraDB/
 | CSV 完整流程 | ✅ | 导入/导出/增删改查全部通过 |
 
 **8/8 全部通过！** ✅
-
----
-
-## 🤝 贡献指南
-
-### 如何贡献
-
-1. **了解项目**：阅读文档和代码，了解项目目标和架构
-2. **寻找任务**：查看 [Issues](https://github.com/AngelDai-lab/DuraDB/issues)，找到可解决的问题
-3. **提交代码**：
-   - Fork 本仓库到你的 GitHub 账号
-   - 在本地完成开发和测试
-   - 提交 Pull Request
-
-### 代码规范
-
-- 代码风格需与项目保持一致
-- 所有代码必须通过现有测试
-- 新增功能需包含单元测试
-
-### Pull Request 要求
-
-- 标题清晰说明改动内容
-- 描述中详细解释改动原因
-- 确保 CI 检查全部通过
 
 ---
 

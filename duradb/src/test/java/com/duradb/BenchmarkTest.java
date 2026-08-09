@@ -1,5 +1,6 @@
 package com.duradb;
 
+
 import com.duradb.model.Student;
 import com.duradb.codec.BinaryCodec;
 import com.duradb.codec.JsonCodec;
@@ -16,9 +17,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * DuraDB 性能基准测试（简化版）
- */
+/* DuraDB 性能基准测试 */
 public class BenchmarkTest {
 
     private static final int[] SIZES = {100, 1000, 5000};
@@ -36,9 +35,9 @@ public class BenchmarkTest {
             writer.println("数据量,格式,写入耗时(ms),文件大小(bytes)");
         }
 
-        System.out.println("📦 准备测试数据...");
+        System.out.println(" 准备测试数据...");
         List<Student> students = generateTestData(5000);
-        System.out.println("✅ 测试数据已生成 (" + students.size() + " 条)");
+        System.out.println(" 测试数据已生成 (" + students.size() + " 条)");
         System.out.println();
 
         for (int size : SIZES) {
